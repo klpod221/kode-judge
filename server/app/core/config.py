@@ -2,6 +2,7 @@ from pydantic_settings import BaseSettings
 from pydantic import PostgresDsn
 from typing import Optional
 
+
 class Settings(BaseSettings):
     # Get environment variables for PostgreSQL connection
     POSTGRES_HOST: str
@@ -9,7 +10,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
     POSTGRES_PORT: int = 5432
-    
+
     # Get environment variables for Redis connection
     REDIS_HOST: str
     REDIS_PORT: int = 6379
@@ -20,7 +21,7 @@ class Settings(BaseSettings):
 
     def __init__(self, **values):
         super().__init__(**values)
-        
+
         # Build the DATABASE_URL if not provided
         if not self.DATABASE_URL:
             self.DATABASE_URL = PostgresDsn.build(
@@ -35,5 +36,6 @@ class Settings(BaseSettings):
     class Config:
         # Load environment variables from a .env file if present
         env_file = ".env"
+
 
 settings = Settings()

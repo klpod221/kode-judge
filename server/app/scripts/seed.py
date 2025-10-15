@@ -51,6 +51,7 @@ LANGUAGES = [
     },
 ]
 
+
 def seed_languages():
     db = SessionLocal()
     try:
@@ -72,6 +73,7 @@ def seed_languages():
         print(f"Error occurred: {e}")
     finally:
         db.close()
-        
+
+
 if __name__ == "__main__":
     seed_languages()

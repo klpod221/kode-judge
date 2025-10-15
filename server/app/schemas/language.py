@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 
+
 class LanguageBase(BaseModel):
     name: str
     version: str
@@ -9,13 +10,18 @@ class LanguageBase(BaseModel):
     compile_command: Optional[str] = None
     run_command: str
 
-class LanguageCreate(LanguageBase):
-    pass
-
-class LanguageUpdate(LanguageBase):
-    pass
 
 class LanguageRead(LanguageBase):
     id: int
+
+    class Config:
+        from_attributes = True
+
+
+class LanguageShow(BaseModel):
+    id: int
+    name: str
+    version: str
+
     class Config:
         from_attributes = True

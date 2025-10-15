@@ -13,4 +13,8 @@ app.include_router(languages.router, prefix="/languages", tags=["languages"])
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to KodeJudge API"}
+    return {
+        "message": "Welcome to KodeJudge API",
+        "documentation": "/docs",
+        "redoc": "/redoc",
+    }
