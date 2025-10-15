@@ -1,9 +1,12 @@
-from sqlalchemy import create_engine, update
+"""
+Database utilities for worker synchronous operations.
+Provides session management for worker context.
+"""
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
 
 from app.core.config import settings
-from app.db.models import Submission, SubmissionStatus
 
 SYNC_DATABASE_URL = str(settings.DATABASE_URL).replace("+asyncpg", "")
 
@@ -13,33 +16,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @contextmanager
 def get_db_session():
+    """
+    Provides a database session context manager.
+    
+    Yields:
+        Session: Database session instance.
+    """
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-
-
-def update_submission_status(db_session, submission_id: int, status: SubmissionStatus):
-    stmt = (
-        update(Submission).where(Submission.id == submission_id).values(status=status)
-    )
-    db_session.execute(stmt)
-    db_session.commit()
-
-
-def update_submission_result(
-    db_session,
-    submission_id: int,
-    status: SubmissionStatus,
-    stdout: str,
-    stderr: str,
-    meta: dict,
-):
-    stmt = (
-        update(Submission)
-        .where(Submission.id == submission_id)
-        .values(status=status, stdout=stdout, stderr=stderr, meta=meta)
-    )
-    db_session.execute(stmt)
-    db_session.commit()

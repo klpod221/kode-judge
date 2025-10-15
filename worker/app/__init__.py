@@ -1,0 +1,1 @@
+"""KodeJudge Worker Application."""

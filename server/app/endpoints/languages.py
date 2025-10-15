@@ -1,18 +1,31 @@
-from fastapi import APIRouter, Depends, HTTPException
+"""
+Language endpoints for retrieving supported programming languages.
+"""
+
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 from typing import List
 
-from app.db.session import AsyncSessionLocal
+from app.dependencies.database import get_db
+from app.repositories.language_repository import LanguageRepository
+from app.services.language_service import LanguageService
 from app.schemas.language import LanguageShow
-from app.db.models import Language
 
 router = APIRouter()
 
 
-async def get_db() -> AsyncSession:
-    async with AsyncSessionLocal() as session:
-        yield session
+def get_language_service(db: AsyncSession = Depends(get_db)) -> LanguageService:
+    """
+    Provides LanguageService instance with dependencies.
+
+    Args:
+        db: Database session from dependency injection.
+
+    Returns:
+        LanguageService: Service instance.
+    """
+    repository = LanguageRepository(db)
+    return LanguageService(repository)
 
 
 @router.get(
@@ -21,9 +34,19 @@ async def get_db() -> AsyncSession:
     summary="Get all languages",
     description="Retrieves a list of all programming languages supported by the system.",
 )
-async def get_all_languages(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Language))
-    return result.scalars().all()
+async def get_all_languages(
+    service: LanguageService = Depends(get_language_service),
+) -> List[LanguageShow]:
+    """
+    Lists all supported languages.
+
+    Args:
+        service: Language service instance.
+
+    Returns:
+        List[LanguageShow]: All available languages.
+    """
+    return await service.get_all_languages()
 
 
 @router.get(
@@ -32,9 +55,18 @@ async def get_all_languages(db: AsyncSession = Depends(get_db)):
     summary="Get a language by ID",
     description="Retrieves details of a specific programming language by its ID.",
 )
-async def get_language(language_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Language).where(Language.id == language_id))
-    language = result.scalar_one_or_none()
-    if not language:
-        raise HTTPException(status_code=404, detail="Language not found")
-    return language
+async def get_language(
+    language_id: int,
+    service: LanguageService = Depends(get_language_service),
+) -> LanguageShow:
+    """
+    Retrieves a specific language by ID.
+
+    Args:
+        language_id: The language identifier.
+        service: Language service instance.
+
+    Returns:
+        LanguageShow: Language details.
+    """
+    return await service.get_language_by_id(language_id)

@@ -32,7 +32,8 @@ class SubmissionRead(SubmissionBase):
 
     class Config:
         from_attributes = True
-        
+
+
 class SubmissionListResponse(BaseModel):
     items: list["SubmissionRead"]
     total_items: int

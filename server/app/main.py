@@ -11,7 +11,7 @@ app.include_router(submissions.router, prefix="/submissions", tags=["Submissions
 app.include_router(languages.router, prefix="/languages", tags=["Languages"])
 
 
-@app.get("/")
+@app.get("/", summary="Root Endpoint", description="Welcome to KodeJudge API")
 async def root():
     return {
         "message": "Welcome to KodeJudge API",

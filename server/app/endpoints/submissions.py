@@ -1,39 +1,44 @@
-import uuid
-import asyncio
-import base64
+"""
+Submission endpoints for code execution and management.
+"""
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
+import uuid
+from fastapi import APIRouter, Depends, Query, Response, status, HTTPException
 from typing import List
-from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
-from redis import Redis
 from rq import Queue
 
-from app.core.config import settings
-from app.db.session import AsyncSessionLocal
+from app.dependencies.database import get_db
+from app.dependencies.queue import get_submission_queue
+from app.repositories.submission_repository import SubmissionRepository
+from app.repositories.language_repository import LanguageRepository
+from app.services.submission_service import SubmissionService
 from app.schemas.submission import (
     SubmissionCreate,
     SubmissionRead,
     SubmissionID,
     SubmissionListResponse,
 )
-from app.schemas.language import LanguageRead
-from app.db import models
-from app.db.models import SubmissionStatus
 
 router = APIRouter()
 
-redis_conn = Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT)
-submission_queue = Queue(
-    settings.REDIS_PREFIX + "_submission_queue", connection=redis_conn
-)
 
+def get_submission_service(
+    db: AsyncSession = Depends(get_db),
+) -> SubmissionService:
+    """
+    Provides SubmissionService instance with dependencies.
 
-async def get_db() -> AsyncSession:
-    async with AsyncSessionLocal() as session:
-        yield session
+    Args:
+        db: Database session from dependency injection.
+
+    Returns:
+        SubmissionService: Service instance.
+    """
+    submission_repo = SubmissionRepository(db)
+    language_repo = LanguageRepository(db)
+    queue = get_submission_queue()
+    return SubmissionService(submission_repo, language_repo, queue)
 
 
 @router.post(
@@ -49,58 +54,20 @@ async def create_batch_submissions(
         False,
         description="If true, source_code and stdin for all submissions are expected to be Base64-encoded.",
     ),
-    db: AsyncSession = Depends(get_db),
-):
-    language_ids = {s.language_id for s in submissions}
-    lang_result = await db.execute(
-        select(models.Language).where(models.Language.id.in_(language_ids))
-    )
-    valid_languages = {lang.id: lang for lang in lang_result.scalars().all()}
+    service: SubmissionService = Depends(get_submission_service),
+) -> List[SubmissionID]:
+    """
+    Creates multiple submissions in batch.
 
-    new_db_submissions = []
-    for sub_create in submissions:
-        language = valid_languages.get(sub_create.language_id)
-        if not language:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Language with ID {sub_create.language_id} is not supported in this batch.",
-            )
+    Args:
+        submissions: List of submission data.
+        base64_encoded: Whether data is Base64 encoded.
+        service: Submission service instance.
 
-        source_code = sub_create.source_code
-        stdin = sub_create.stdin
-        if base64_encoded:
-            try:
-                source_code = base64.b64decode(source_code).decode("utf-8")
-                if stdin:
-                    stdin = base64.b64decode(stdin).decode("utf-8")
-            except (ValueError, TypeError, base64.binascii.Error) as e:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid Base64 data in batch for submission with language ID {sub_create.language_id}: {e}",
-                )
-
-        db_submission = models.Submission(
-            source_code=source_code, stdin=stdin, language_id=language.id
-        )
-        db_submission.language = language
-        new_db_submissions.append(db_submission)
-
-    if not new_db_submissions:
-        return []
-
-    db.add_all(new_db_submissions)
-    await db.commit()
-
-    for db_sub in new_db_submissions:
-        submission_data = SubmissionRead.model_validate(db_sub).model_dump(mode="json")
-        language_data = LanguageRead.model_validate(db_sub.language).model_dump(
-            mode="json"
-        )
-        submission_queue.enqueue(
-            "app.worker.process_submission", submission_data, language_data
-        )
-
-    return [SubmissionID(id=sub.id) for sub in new_db_submissions]
+    Returns:
+        List[SubmissionID]: Created submission IDs.
+    """
+    return await service.create_batch_submissions(submissions, base64_encoded)
 
 
 @router.get(
@@ -119,8 +86,19 @@ async def get_batch_submissions(
         False,
         description="Set to true to Base64 encode fields specified in the 'fields' parameter.",
     ),
-    db: AsyncSession = Depends(get_db),
-):
+    service: SubmissionService = Depends(get_submission_service),
+) -> List[SubmissionRead]:
+    """
+    Retrieves multiple submissions by IDs.
+
+    Args:
+        ids: Comma-separated UUID list.
+        base64_encoded: Whether to encode output as Base64.
+        service: Submission service instance.
+
+    Returns:
+        List[SubmissionRead]: Submission details.
+    """
     try:
         submission_ids = [uuid.UUID(sub_id.strip()) for sub_id in ids.split(",")]
     except ValueError:
@@ -132,35 +110,7 @@ async def get_batch_submissions(
     if not submission_ids:
         return []
 
-    stmt = (
-        select(models.Submission)
-        .where(models.Submission.id.in_(submission_ids))
-        .options(selectinload(models.Submission.language))
-    )
-    result = await db.execute(stmt)
-    db_submissions = result.scalars().all()
-
-    response_data = [SubmissionRead.model_validate(sub) for sub in db_submissions]
-
-    if base64_encoded:
-        for submission, db_submission in zip(response_data, db_submissions):
-            submission.source_code = base64.b64encode(
-                db_submission.source_code.encode("utf-8")
-            ).decode("utf-8")
-            if db_submission.stdin:
-                submission.stdin = base64.b64encode(
-                    db_submission.stdin.encode("utf-8")
-                ).decode("utf-8")
-            if db_submission.stdout:
-                submission.stdout = base64.b64encode(
-                    db_submission.stdout.encode("utf-8")
-                ).decode("utf-8")
-            if db_submission.stderr:
-                submission.stderr = base64.b64encode(
-                    db_submission.stderr.encode("utf-8")
-                ).decode("utf-8")
-
-    return response_data
+    return await service.get_batch_submissions(submission_ids, base64_encoded)
 
 
 @router.post(
@@ -179,71 +129,21 @@ async def create_submission(
         False,
         description="If true, the source_code and stdin fields are expected to be Base64-encoded. Defaults to false.",
     ),
-    db: AsyncSession = Depends(get_db),
+    service: SubmissionService = Depends(get_submission_service),
 ):
-    if base64_encoded:
-        try:
-            submission.source_code = base64.b64decode(submission.source_code).decode(
-                "utf-8"
-            )
-            if submission.stdin:
-                submission.stdin = base64.b64decode(submission.stdin).decode("utf-8")
-        except (ValueError, TypeError, base64.binascii.Error) as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid Base64 data: {e}",
-            )
+    """
+    Creates a new submission.
 
-    # Find the language
-    lang_result = await db.execute(
-        select(models.Language).where(models.Language.id == submission.language_id)
-    )
-    language = lang_result.scalars().first()
+    Args:
+        submission: Submission data.
+        wait: Whether to wait for completion.
+        base64_encoded: Whether data is Base64 encoded.
+        service: Submission service instance.
 
-    if not language:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Language with ID {submission.language_id} is not supported.",
-        )
-
-    db_submission = models.Submission(
-        source_code=submission.source_code,
-        language_id=submission.language_id,
-        stdin=submission.stdin,
-        status=SubmissionStatus.PENDING,
-    )
-    db.add(db_submission)
-    await db.commit()
-    await db.refresh(db_submission, ["language"])
-
-    submission_data = SubmissionRead.model_validate(db_submission).model_dump(
-        mode="json"
-    )
-    language_data = LanguageRead.model_validate(language).model_dump(mode="json")
-    submission_queue.enqueue(
-        "app.worker.process_submission", submission_data, language_data
-    )
-
-    if not wait:
-        return SubmissionID(id=db_submission.id)
-
-    timeout = 15  # seconds
-    poll_interval = 0.5  # seconds
-    elapsed_time = 0.0
-
-    while elapsed_time < timeout:
-        await db.refresh(db_submission)
-
-        if db_submission.status in {SubmissionStatus.FINISHED, SubmissionStatus.ERROR}:
-            return db_submission
-
-        await asyncio.sleep(poll_interval)
-        elapsed_time += poll_interval
-
-    raise HTTPException(
-        status_code=status.HTTP_408_REQUEST_TIMEOUT,
-        detail="Request timed out while waiting for submission to complete.",
-    )
+    Returns:
+        SubmissionID | SubmissionRead: Submission ID or full details.
+    """
+    return await service.create_submission(submission, base64_encoded, wait)
 
 
 @router.get(
@@ -258,44 +158,20 @@ async def get_submission(
         False,
         description="If true, the source_code, stdin, stdout, and stderr fields in the response will be Base64-encoded. Defaults to false.",
     ),
-    db: AsyncSession = Depends(get_db),
+    service: SubmissionService = Depends(get_submission_service),
 ):
-    stmt = (
-        select(models.Submission)
-        .where(models.Submission.id == submission_id)
-        .options(selectinload(models.Submission.language))
-    )
+    """
+    Retrieves a submission by ID.
 
-    result = await db.execute(stmt)
-    db_submission = result.scalars().first()
+    Args:
+        submission_id: The submission identifier.
+        base64_encoded: Whether to encode output as Base64.
+        service: Submission service instance.
 
-    if not db_submission:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found"
-        )
-
-    submission_data = SubmissionRead.model_validate(db_submission).model_dump(
-        mode="json"
-    )
-
-    if base64_encoded:
-        submission_data["source_code"] = base64.b64encode(
-            db_submission.source_code.encode("utf-8")
-        ).decode("utf-8")
-        if db_submission.stdin:
-            submission_data["stdin"] = base64.b64encode(
-                db_submission.stdin.encode("utf-8")
-            ).decode("utf-8")
-        if db_submission.stdout:
-            submission_data["stdout"] = base64.b64encode(
-                db_submission.stdout.encode("utf-8")
-            ).decode("utf-8")
-        if db_submission.stderr:
-            submission_data["stderr"] = base64.b64encode(
-                db_submission.stderr.encode("utf-8")
-            ).decode("utf-8")
-
-    return submission_data
+    Returns:
+        SubmissionRead: Submission details.
+    """
+    return await service.get_submission(submission_id, base64_encoded)
 
 
 @router.get(
@@ -311,77 +187,42 @@ async def list_submissions(
     ),
     page: int = Query(1, ge=1, description="Page number for pagination."),
     page_size: int = Query(10, ge=1, le=100, description="Number of items per page."),
-    db: AsyncSession = Depends(get_db),
-):
+    service: SubmissionService = Depends(get_submission_service),
+) -> SubmissionListResponse:
+    """
+    Lists all submissions with pagination.
 
-    # Get total items for pagination
-    total_stmt = select(func.count()).select_from(models.Submission)
-    total_result = await db.execute(total_stmt)
-    total_items = total_result.scalar_one()
+    Args:
+        base64_encoded: Whether to encode output as Base64.
+        page: Page number.
+        page_size: Items per page.
+        service: Submission service instance.
 
-    stmt = (
-        select(models.Submission)
-        .options(selectinload(models.Submission.language))
-        .order_by(models.Submission.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    )
-    result = await db.execute(stmt)
-    db_submissions = result.scalars().all()
-
-    submissions_data = [
-        SubmissionRead.model_validate(submission).model_dump(mode="json")
-        for submission in db_submissions
-    ]
-
-    if base64_encoded:
-        for submission, db_submission in zip(submissions_data, db_submissions):
-            submission["source_code"] = base64.b64encode(
-                db_submission.source_code.encode("utf-8")
-            ).decode("utf-8")
-            if db_submission.stdin:
-                submission["stdin"] = base64.b64encode(
-                    db_submission.stdin.encode("utf-8")
-                ).decode("utf-8")
-            if db_submission.stdout:
-                submission["stdout"] = base64.b64encode(
-                    db_submission.stdout.encode("utf-8")
-                ).decode("utf-8")
-            if db_submission.stderr:
-                submission["stderr"] = base64.b64encode(
-                    db_submission.stderr.encode("utf-8")
-                ).decode("utf-8")
-
-    total_pages = (total_items + page_size - 1) // page_size if page_size > 0 else 1
-
-    return {
-        "items": submissions_data,
-        "total_items": total_items,
-        "total_pages": total_pages,
-        "current_page": page,
-        "page_size": page_size,
-    }
+    Returns:
+        SubmissionListResponse: Paginated submission list.
+    """
+    return await service.list_submissions(page, page_size, base64_encoded)
 
 
 @router.delete(
     "/{submission_id}",
-    status_code=204,
+    status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a submission",
     description="Deletes a submission by its UUID.",
 )
 async def delete_submission(
     submission_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    service: SubmissionService = Depends(get_submission_service),
 ):
-    stmt = select(models.Submission).where(models.Submission.id == submission_id)
-    result = await db.execute(stmt)
-    db_submission = result.scalars().first()
+    """
+    Deletes a submission.
 
-    if not db_submission:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found"
-        )
+    Args:
+        submission_id: The submission identifier.
+        service: Submission service instance.
 
-    await db.delete(db_submission)
-    await db.commit()
+    Returns:
+        Response: Empty 204 response.
+    """
+    await service.delete_submission(submission_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
