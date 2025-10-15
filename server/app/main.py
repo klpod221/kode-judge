@@ -7,8 +7,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
-app.include_router(submissions.router, prefix="/submissions", tags=["submissions"])
-app.include_router(languages.router, prefix="/languages", tags=["languages"])
+app.include_router(submissions.router, prefix="/submissions", tags=["Submissions"])
+app.include_router(languages.router, prefix="/languages", tags=["Languages"])
 
 
 @app.get("/")

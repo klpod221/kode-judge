@@ -2,7 +2,7 @@ import uuid
 from pydantic import BaseModel, Field
 from datetime import datetime
 from app.db.models import SubmissionStatus
-from typing import Dict, Any
+from typing import Optional, Dict, Any, List
 
 from .language import LanguageShow
 
@@ -32,3 +32,10 @@ class SubmissionRead(SubmissionBase):
 
     class Config:
         from_attributes = True
+        
+class SubmissionListResponse(BaseModel):
+    items: list["SubmissionRead"]
+    total_items: int
+    total_pages: int
+    current_page: int
+    page_size: int

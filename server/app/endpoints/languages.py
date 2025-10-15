@@ -15,13 +15,23 @@ async def get_db() -> AsyncSession:
         yield session
 
 
-@router.get("/", response_model=List[LanguageShow])
+@router.get(
+    "/",
+    response_model=List[LanguageShow],
+    summary="Get all languages",
+    description="Retrieves a list of all programming languages supported by the system.",
+)
 async def get_all_languages(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Language))
     return result.scalars().all()
 
 
-@router.get("/{language_id}", response_model=LanguageShow)
+@router.get(
+    "/{language_id}",
+    response_model=LanguageShow,
+    summary="Get a language by ID",
+    description="Retrieves details of a specific programming language by its ID.",
+)
 async def get_language(language_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Language).where(Language.id == language_id))
     language = result.scalar_one_or_none()
