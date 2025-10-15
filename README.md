@@ -16,6 +16,7 @@
 - 🚀 **Multi-Language Support** - Execute code in Python, C, C++, Java, JavaScript, and more
 - 🔒 **Secure Sandboxing** - Isolate-based sandboxing for safe code execution
 - ⚡ **Async Processing** - RQ (Redis Queue) for asynchronous job processing
+- 🔄 **Concurrent Workers** - Configurable number of workers for parallel execution
 - 🏗️ **Clean Architecture** - SOLID principles with Repository and Service patterns
 - 🐳 **Docker-based** - Fully containerized with Docker Compose
 - 📊 **RESTful API** - FastAPI with automatic OpenAPI documentation
@@ -23,6 +24,7 @@
 - 📦 **Base64 Support** - Handle encoded source code and I/O
 - 🔄 **Batch Operations** - Submit and retrieve multiple submissions at once
 - ⏱️ **Wait Mode** - Optional synchronous execution with immediate results
+- 🔍 **Health Checks** - Comprehensive monitoring endpoints for all system components
 
 ## 🚀 Getting Started
 
@@ -70,6 +72,9 @@ POSTGRES_PORT=5432
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PREFIX=kodejudge
+
+# Worker
+WORKER_CONCURRENCY=4  # Number of concurrent workers (default: 4)
 ```
 
 ## 📚 API Usage
@@ -98,6 +103,28 @@ curl "http://localhost:8000/submissions/{submission_id}"
 curl "http://localhost:8000/languages/"
 ```
 
+### Health Check
+
+```bash
+# Overall health
+curl "http://localhost:8000/health/"
+
+# Database health
+curl "http://localhost:8000/health/database"
+
+# Redis health
+curl "http://localhost:8000/health/redis"
+
+# Workers health
+curl "http://localhost:8000/health/workers"
+
+# System information
+curl "http://localhost:8000/health/info"
+
+# Simple ping
+curl "http://localhost:8000/health/ping"
+```
+
 ### Batch Submissions
 
 ```bash
@@ -116,6 +143,96 @@ curl -X POST "http://localhost:8000/submissions/batch" \
 ```
 
 For more examples, visit the interactive API documentation at `/docs`.
+
+## ⚙️ Worker Configuration
+
+### Adjusting Worker Concurrency
+
+KodeJudge supports running multiple workers in parallel to handle high loads. Configure the number of workers using the `WORKER_CONCURRENCY` environment variable:
+
+```env
+# .env file
+WORKER_CONCURRENCY=8  # Run 8 workers in parallel
+```
+
+**Default:** 4 workers
+
+**Recommendations:**
+- **Low traffic:** 2-4 workers
+- **Medium traffic:** 4-8 workers
+- **High traffic:** 8-16 workers
+- **Resource consideration:** Each worker requires CPU and memory for code execution
+
+### Monitoring Workers
+
+Check worker status:
+```bash
+# View worker logs
+docker-compose logs -f worker
+
+# Check running workers
+docker-compose exec worker rq info --url redis://queue:6379
+
+# Health check via API
+curl http://localhost:8000/health/workers
+```
+
+## 🔍 Monitoring & Health Checks
+
+KodeJudge provides comprehensive health check endpoints for monitoring system status:
+
+### Available Endpoints
+
+| Endpoint | Description | Response |
+|----------|-------------|----------|
+| `/health/` | Overall system health | Status of all components |
+| `/health/database` | Database connectivity | Connection status & response time |
+| `/health/redis` | Redis connectivity | Connection status & response time |
+| `/health/workers` | Worker status | Queue size, worker count, failed jobs |
+| `/health/info` | System information | Version, uptime, statistics |
+| `/health/ping` | Simple availability check | Basic pong response |
+
+### Health Status Values
+
+- `healthy` - All systems operational
+- `degraded` - System operational but with issues (high load, failed jobs)
+- `unhealthy` - Critical component failure
+- `no_workers` - No workers available to process submissions
+
+### Worker Health Metrics
+
+The `/health/workers` endpoint provides detailed metrics:
+
+```json
+{
+  "queue_name": "kodejudge_submission_queue",
+  "queue_size": 5,
+  "workers_total": 4,
+  "workers_busy": 2,
+  "workers_idle": 2,
+  "failed_jobs": 0,
+  "status": "healthy"
+}
+```
+
+### Integration with Monitoring Tools
+
+Health check endpoints can be integrated with monitoring tools like:
+- **Prometheus** - For metrics collection
+- **Grafana** - For visualization
+- **UptimeRobot** - For uptime monitoring
+- **Datadog** - For comprehensive monitoring
+
+Example Prometheus scrape config:
+```yaml
+scrape_configs:
+  - job_name: 'kodejudge'
+    metrics_path: '/health/'
+    static_configs:
+      - targets: ['localhost:8000']
+```
+
+## 🛠️ Development
 
 ## 🎯 Supported Languages
 
@@ -155,4 +272,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Inspired by [Judge0](https://judge0.com/)
 - Built with [FastAPI](https://fastapi.tiangolo.com/)
 - Sandboxing powered by [Isolate](https://github.com/ioi/isolate)
-

@@ -39,10 +39,14 @@ RUN apt-get update && apt-get install -y openjdk-${JAVA_VERSION}-jdk-headless &&
 # Copy entire worker code into the container
 COPY . .
 
+# Make startup script executable
+RUN chmod +x start-workers.sh
+
 # Get environment variables to configure Redis connection
 ENV REDIS_HOST=queue
 ENV REDIS_PORT=6379
 ENV REDIS_PREFIX=kodejudge
+ENV WORKER_CONCURRENCY=4
 
-# Command to run the worker
-CMD ["sh", "-c", "rq worker --url redis://$REDIS_HOST:$REDIS_PORT ${REDIS_PREFIX}_submission_queue"]
+# Command to run the workers with concurrency support
+CMD ["./start-workers.sh"]
