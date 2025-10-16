@@ -48,7 +48,8 @@
 
 3. **Run database migrations:**
    ```bash
-   docker compose exec server alembic upgrade head
+   docker compose run --rm server alembic upgrade head
+   docker compose run --rm server python -m app.scripts.seed  # Seed initial data
    ```
 
 4. **Access the API:**

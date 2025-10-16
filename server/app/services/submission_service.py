@@ -75,6 +75,18 @@ class SubmissionService:
             language_id=language.id,
             stdin=stdin,
             status=SubmissionStatus.PENDING,
+            expected_output=submission_data.expected_output,
+            cpu_time_limit=submission_data.cpu_time_limit,
+            cpu_extra_time=submission_data.cpu_extra_time,
+            wall_time_limit=submission_data.wall_time_limit,
+            memory_limit=submission_data.memory_limit,
+            max_processes_and_or_threads=submission_data.max_processes_and_or_threads,
+            max_file_size=submission_data.max_file_size,
+            number_of_runs=submission_data.number_of_runs,
+            enable_per_process_and_thread_time_limit=submission_data.enable_per_process_and_thread_time_limit,
+            enable_per_process_and_thread_memory_limit=submission_data.enable_per_process_and_thread_memory_limit,
+            redirect_stderr_to_stdout=submission_data.redirect_stderr_to_stdout,
+            enable_network=submission_data.enable_network,
         )
         
         created_submission = await self.submission_repo.create(db_submission)
@@ -122,6 +134,18 @@ class SubmissionService:
                 source_code=source_code,
                 stdin=stdin,
                 language_id=language.id,
+                expected_output=sub_data.expected_output,
+                cpu_time_limit=sub_data.cpu_time_limit,
+                cpu_extra_time=sub_data.cpu_extra_time,
+                wall_time_limit=sub_data.wall_time_limit,
+                memory_limit=sub_data.memory_limit,
+                max_processes_and_or_threads=sub_data.max_processes_and_or_threads,
+                max_file_size=sub_data.max_file_size,
+                number_of_runs=sub_data.number_of_runs,
+                enable_per_process_and_thread_time_limit=sub_data.enable_per_process_and_thread_time_limit,
+                enable_per_process_and_thread_memory_limit=sub_data.enable_per_process_and_thread_memory_limit,
+                redirect_stderr_to_stdout=sub_data.redirect_stderr_to_stdout,
+                enable_network=sub_data.enable_network,
             )
             db_submission.language = language
             new_submissions.append(db_submission)
@@ -333,7 +357,7 @@ class SubmissionService:
         while elapsed_time < timeout:
             refreshed = await self.submission_repo.get_by_id(submission.id)
             
-            if refreshed.status in {SubmissionStatus.FINISHED, SubmissionStatus.ERROR}:
+            if refreshed and refreshed.status in {SubmissionStatus.FINISHED, SubmissionStatus.ERROR}:
                 return SubmissionRead.model_validate(refreshed)
             
             await asyncio.sleep(poll_interval)

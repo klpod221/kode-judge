@@ -1,7 +1,8 @@
 import enum
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import Column, Integer, String, Text, DateTime, Enum
-from sqlalchemy.orm import declarative_base
+import uuid
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Column, Integer, Text, DateTime, Enum, ForeignKey, Float, Boolean
+from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
 Base = declarative_base()
@@ -27,6 +28,25 @@ class Submission(Base):
         Enum(SubmissionStatus), default=SubmissionStatus.PENDING, nullable=False
     )
     meta = Column(JSONB)
+    
+    # Expected output for comparison
+    expected_output = Column(Text)
+    
+    # Sandbox execution limits (nullable - will use defaults from config if None)
+    cpu_time_limit = Column(Float)
+    cpu_extra_time = Column(Float)
+    wall_time_limit = Column(Float)
+    memory_limit = Column(Integer)
+    max_processes_and_or_threads = Column(Integer)
+    max_file_size = Column(Integer)
+    number_of_runs = Column(Integer)
+    
+    # Sandbox boolean flags (nullable - will use defaults from config if None)
+    enable_per_process_and_thread_time_limit = Column(Boolean)
+    enable_per_process_and_thread_memory_limit = Column(Boolean)
+    redirect_stderr_to_stdout = Column(Boolean)
+    enable_network = Column(Boolean)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -34,10 +54,10 @@ class Language(Base):
     __tablename__ = "languages"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False)
-    version = Column(String, nullable=False)
-    file_name = Column(String, nullable=False)
-    file_extension = Column(String, nullable=False)
+    name = Column(Text, unique=True, nullable=False)
+    version = Column(Text, nullable=False)
+    file_name = Column(Text, nullable=False)
+    file_extension = Column(Text, nullable=False)
     compile_command = Column(Text)
     run_command = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

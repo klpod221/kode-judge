@@ -67,6 +67,7 @@ class SubmissionRepository:
             select(Submission)
             .where(Submission.id == submission_id)
             .options(selectinload(Submission.language))
+            .execution_options(populate_existing=True)
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()

@@ -1,8 +1,8 @@
 """Create initial database schema
 
-Revision ID: 33618aeacc55
+Revision ID: 93dd25fc59c4
 Revises: 
-Create Date: 2025-10-13 11:19:18.539917
+Create Date: 2025-10-16 03:30:11.494659
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '33618aeacc55'
+revision: str = '93dd25fc59c4'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -44,6 +44,18 @@ def upgrade() -> None:
     sa.Column('stderr', sa.Text(), nullable=True),
     sa.Column('status', sa.Enum('PENDING', 'PROCESSING', 'FINISHED', 'ERROR', name='submissionstatus'), nullable=False),
     sa.Column('meta', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    sa.Column('expected_output', sa.Text(), nullable=True),
+    sa.Column('cpu_time_limit', sa.Float(), nullable=True),
+    sa.Column('cpu_extra_time', sa.Float(), nullable=True),
+    sa.Column('wall_time_limit', sa.Float(), nullable=True),
+    sa.Column('memory_limit', sa.Integer(), nullable=True),
+    sa.Column('max_processes_and_or_threads', sa.Integer(), nullable=True),
+    sa.Column('max_file_size', sa.Integer(), nullable=True),
+    sa.Column('number_of_runs', sa.Integer(), nullable=True),
+    sa.Column('enable_per_process_and_thread_time_limit', sa.Boolean(), nullable=True),
+    sa.Column('enable_per_process_and_thread_memory_limit', sa.Boolean(), nullable=True),
+    sa.Column('redirect_stderr_to_stdout', sa.Boolean(), nullable=True),
+    sa.Column('enable_network', sa.Boolean(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.ForeignKeyConstraint(['language_id'], ['languages.id'], ),
     sa.PrimaryKeyConstraint('id')
