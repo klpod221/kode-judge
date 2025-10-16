@@ -132,10 +132,14 @@ class SubmissionProcessingService:
                 
                 self.sandbox_service.prepare_stdin(stdin)
                 
+                compile_output = None
                 if language_data.get("compile_command"):
                     compile_result = self.sandbox_service.compile(
                         language_data["compile_command"]
                     )
+                    
+                    # Combine stdout and stderr for compile_output
+                    compile_output = f"{compile_result['stdout']}\n{compile_result['stderr']}".strip()
                     
                     if not compile_result["success"]:
                         repository.update_result(
@@ -143,12 +147,14 @@ class SubmissionProcessingService:
                             status=SubmissionStatus.ERROR,
                             stdout=compile_result["stdout"],
                             stderr=compile_result["stderr"],
+                            compile_output=compile_output,
                             meta=compile_result["meta"],
                         )
                         return {
                             "result": "compile_error",
                             "stdout": compile_result["stdout"],
                             "stderr": compile_result["stderr"],
+                            "compile_output": compile_output,
                             "meta": compile_result["meta"],
                         }
                 
@@ -168,6 +174,7 @@ class SubmissionProcessingService:
                     status=SubmissionStatus.FINISHED,
                     stdout=execution_result["stdout"],
                     stderr=execution_result["stderr"],
+                    compile_output=compile_output,
                     meta=execution_result["meta"],
                 )
                 

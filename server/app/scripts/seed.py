@@ -46,8 +46,8 @@ LANGUAGES = [
         "version": "openjdk 17",
         "file_name": "Main",
         "file_extension": ".java",
-        "compile_command": "/usr/lib/jvm/java-17-openjdk-amd64/bin/javac -J-Xms48m Main.java",
-        "run_command": "/usr/lib/jvm/java-17-openjdk-amd64/bin/java -Xint Main",
+        "compile_command": "/usr/lib/jvm/java-17-openjdk-amd64/bin/javac Main.java",
+        "run_command": "/usr/lib/jvm/java-17-openjdk-amd64/bin/java Main",
     },
 ]
 

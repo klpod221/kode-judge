@@ -46,6 +46,7 @@ class SubmissionRead(SubmissionBase):
     status: SubmissionStatus
     stdout: str | None
     stderr: str | None
+    compile_output: str | None
     meta: Dict[str, Any] | None
     created_at: datetime
 
@@ -66,6 +67,7 @@ class SubmissionRead(SubmissionBase):
             'status': self.status,
             'stdout': self.stdout,
             'stderr': self.stderr,
+            'compile_output': self.compile_output,
             'meta': self.meta,
             'created_at': self.created_at,
             

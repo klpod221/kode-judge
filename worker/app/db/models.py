@@ -18,12 +18,14 @@ class SubmissionStatus(str, enum.Enum):
 class Submission(Base):
     __tablename__ = "submissions"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     source_code = Column(Text, nullable=False)
-    language_id = Column(Integer, nullable=False)
+    language_id = Column(Integer, ForeignKey("languages.id"), nullable=False)
+    language = relationship("Language")
     stdin = Column(Text)
     stdout = Column(Text)
     stderr = Column(Text)
+    compile_output = Column(Text)
     status = Column(
         Enum(SubmissionStatus), default=SubmissionStatus.PENDING, nullable=False
     )

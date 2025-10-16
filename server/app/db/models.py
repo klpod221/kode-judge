@@ -39,6 +39,7 @@ class Submission(Base):
     stdin = Column(Text)
     stdout = Column(Text)
     stderr = Column(Text)
+    compile_output = Column(Text)
     status = Column(
         Enum(SubmissionStatus), default=SubmissionStatus.PENDING, nullable=False
     )

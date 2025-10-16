@@ -42,6 +42,7 @@ class SubmissionRepository:
         stdout: str,
         stderr: str,
         meta: dict,
+        compile_output: str = None,
     ) -> None:
         """
         Updates submission with execution results.
@@ -52,11 +53,22 @@ class SubmissionRepository:
             stdout: Standard output from execution.
             stderr: Standard error from execution.
             meta: Metadata dictionary with execution details.
+            compile_output: Combined compilation stdout and stderr (optional).
         """
+        values = {
+            "status": status,
+            "stdout": stdout,
+            "stderr": stderr,
+            "meta": meta,
+        }
+        
+        if compile_output is not None:
+            values["compile_output"] = compile_output
+        
         stmt = (
             update(Submission)
             .where(Submission.id == submission_id)
-            .values(status=status, stdout=stdout, stderr=stderr, meta=meta)
+            .values(**values)
         )
         self.db.execute(stmt)
         self.db.commit()
