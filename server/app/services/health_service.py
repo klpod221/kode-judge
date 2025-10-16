@@ -13,6 +13,7 @@ from rq import Queue
 from rq.worker import Worker
 
 from app.db.models import Language, Submission
+from app.core.state import get_app_version
 from app.schemas.health import (
     HealthResponse,
     DatabaseHealth,
@@ -152,7 +153,7 @@ class HealthCheckService:
         return HealthResponse(
             status=overall_status,
             timestamp=datetime.utcnow(),
-            version="1.0.0",
+            version=get_app_version(),
             database=db_health,
             redis=redis_health,
             workers=worker_health,
@@ -174,7 +175,7 @@ class HealthCheckService:
         uptime = time.time() - self.app_start_time
         
         return SystemInfo(
-            api_version="1.0.0",
+            api_version=get_app_version(),
             python_version=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
             environment="production",
             uptime_seconds=round(uptime, 2),
