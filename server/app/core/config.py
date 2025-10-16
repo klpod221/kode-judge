@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     SANDBOX_REDIRECT_STDERR_TO_STDOUT: bool = False
     SANDBOX_ENABLE_NETWORK: bool = False
 
+    # Rate limiting configuration
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_PER_MINUTE: int = 20
+    RATE_LIMIT_PER_HOUR: int = 100
+    RATE_LIMIT_STRATEGY: str = "fixed-window"  # fixed-window or sliding-window
+
     def __init__(self, **values):
         super().__init__(**values)
 
