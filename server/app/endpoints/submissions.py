@@ -167,7 +167,7 @@ async def get_submission(
     fields: str | None = Query(
         None,
         description="Comma-separated list of fields to return. Use 'all' for all fields, 'default' for default fields, or 'default,field1,field2' to extend defaults. Leave empty for default fields only.",
-        example="default,meta,language",
+        example="default,meta",
     ),
     service: SubmissionService = Depends(get_submission_service),
 ) -> Dict[str, Any]:
@@ -200,7 +200,7 @@ async def list_submissions(
     fields: str | None = Query(
         None,
         description="Comma-separated list of fields to return. Use 'all' for all fields, 'default' for default fields, or 'default,field1,field2' to extend defaults. Leave empty for default fields only.",
-        example="default,source_code,language",
+        example="default,source_code,meta",
     ),
     page: int = Query(1, ge=1, description="Page number for pagination."),
     page_size: int = Query(10, ge=1, le=100, description="Number of items per page."),
