@@ -1,5 +1,5 @@
 import uuid
-from pydantic import BaseModel, Field, model_serializer
+from pydantic import BaseModel, Field, model_serializer, field_validator
 from datetime import datetime
 from app.db.models import SubmissionStatus
 from typing import Optional, Dict, Any, List
@@ -9,29 +9,44 @@ from .language import LanguageShow
 
 
 class SubmissionBase(BaseModel):
-    source_code: str
+    source_code: str = Field(..., min_length=1, description="Source code for the submission (cannot be empty)")
     language_id: int
     stdin: str | None = None
-    # Additional files: list of {name: str, content: str}
     additional_files: list[dict] | None = None
     
-    # Expected output for comparison
     expected_output: str | None = None
     
-    # Sandbox execution limits (optional - will use defaults from config if None)
-    cpu_time_limit: float | None = None
-    cpu_extra_time: float | None = None
-    wall_time_limit: float | None = None
-    memory_limit: int | None = None
-    max_processes_and_or_threads: int | None = None
-    max_file_size: int | None = None
-    number_of_runs: int | None = None
+    cpu_time_limit: float | None = Field(None, gt=0)
+    cpu_extra_time: float | None = Field(None, gt=0)
+    wall_time_limit: float | None = Field(None, gt=0)
+    memory_limit: int | None = Field(None, gt=0)
+    max_processes_and_or_threads: int | None = Field(None, gt=0)
+    max_file_size: int | None = Field(None, gt=0)
+    number_of_runs: int | None = Field(None, gt=0)
     
-    # Sandbox boolean flags (optional - will use defaults from config if None)
     enable_per_process_and_thread_time_limit: bool | None = None
     enable_per_process_and_thread_memory_limit: bool | None = None
     redirect_stderr_to_stdout: bool | None = None
     enable_network: bool | None = None
+    
+    @field_validator('source_code')
+    @classmethod
+    def validate_source_code(cls, v: str) -> str:
+        """
+        Validates source code is not just whitespace.
+        
+        Args:
+            v: Source code string.
+            
+        Returns:
+            str: Validated source code.
+            
+        Raises:
+            ValueError: If source code is only whitespace.
+        """
+        if not v or not v.strip():
+            raise ValueError('Source code cannot be empty or contain only whitespace')
+        return v
 
 
 class SubmissionCreate(SubmissionBase):

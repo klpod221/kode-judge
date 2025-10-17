@@ -105,8 +105,19 @@ async def get_batch_submissions(
     Returns:
         List[Dict[str, Any]]: Submission details.
     """
+    if not ids or not ids.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=[{
+                "type": "value_error",
+                "loc": ["query", "ids"],
+                "msg": "Field required",
+                "input": None
+            }]
+        )
+    
     try:
-        submission_ids = [uuid.UUID(sub_id.strip()) for sub_id in ids.split(",")]
+        submission_ids = [uuid.UUID(sub_id.strip()) for sub_id in ids.split(",") if sub_id.strip()]
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

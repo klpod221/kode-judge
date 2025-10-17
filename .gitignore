@@ -117,3 +117,8 @@ worker/*.log
 # Ignore OS files
 .DS_Store
 Thumbs.db
+
+# Test runner files
+result.html
+test-cases.json
+test-runner.js

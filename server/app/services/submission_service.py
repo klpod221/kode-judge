@@ -73,9 +73,9 @@ class SubmissionService:
             submission_data.additional_files,
             base64_encoded,
         )
-        
+
         language = await self._validate_language(submission_data.language_id)
-        
+
         db_submission = Submission(
             source_code=source_code,
             language_id=language.id,
@@ -128,8 +128,9 @@ class SubmissionService:
         for sub_data in submissions_data:
             language = language_map.get(sub_data.language_id)
             if not language:
+                # Return 404 Not Found when a requested language doesn't exist.
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Language with ID {sub_data.language_id} is not supported."
                 )
             
@@ -201,10 +202,11 @@ class SubmissionService:
             mode="json"
         )
         
+        field_set = FieldFilter.parse_fields(fields)
+        
         if base64_encoded:
             submission_data = self._encode_submission_data(submission, submission_data)
         
-        field_set = FieldFilter.parse_fields(fields)
         submission_data = FieldFilter.filter_data(submission_data, field_set)
         
         return submission_data
@@ -229,11 +231,12 @@ class SubmissionService:
             for sub in submissions
         ]
         
+        field_set = FieldFilter.parse_fields(fields)
+        
         if base64_encoded:
             for submission_data, db_submission in zip(submissions_data, submissions):
                 self._encode_dict_fields(submission_data, db_submission)
         
-        field_set = FieldFilter.parse_fields(fields)
         submissions_data = FieldFilter.filter_list(submissions_data, field_set)
         
         return submissions_data
@@ -253,31 +256,38 @@ class SubmissionService:
         Returns:
             Dict[str, Any]: Paginated submission list.
         """
-        submissions, total_items = await self.submission_repo.get_paginated(
-            page, page_size
-        )
-        
-        submissions_data = [
-            SubmissionRead.model_validate(sub).model_dump(mode="json")
-            for sub in submissions
-        ]
-        
-        if base64_encoded:
-            for submission_data, db_submission in zip(submissions_data, submissions):
-                self._encode_dict_fields(submission_data, db_submission)
-        
-        field_set = FieldFilter.parse_fields(fields)
-        submissions_data = FieldFilter.filter_list(submissions_data, field_set)
-        
-        total_pages = (total_items + page_size - 1) // page_size if page_size > 0 else 1
-        
-        return {
-            "items": submissions_data,
-            "total_items": total_items,
-            "total_pages": total_pages,
-            "current_page": page,
-            "page_size": page_size,
-        }
+        try:
+            submissions, total_items = await self.submission_repo.get_paginated(
+                page, page_size
+            )
+            
+            submissions_data = [
+                SubmissionRead.model_validate(sub).model_dump(mode="json")
+                for sub in submissions
+            ]
+            
+            field_set = FieldFilter.parse_fields(fields)
+            
+            if base64_encoded:
+                for submission_data, db_submission in zip(submissions_data, submissions):
+                    self._encode_dict_fields(submission_data, db_submission)
+            
+            submissions_data = FieldFilter.filter_list(submissions_data, field_set)
+            
+            total_pages = (total_items + page_size - 1) // page_size if page_size > 0 else 1
+            
+            return {
+                "items": submissions_data,
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "current_page": page,
+                "page_size": page_size,
+            }
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Internal Server Error"
+            )
     
     async def delete_submission(self, submission_id: uuid.UUID) -> None:
         """
@@ -378,7 +388,7 @@ class SubmissionService:
         language = await self.language_repo.get_by_id(language_id)
         if not language:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Language with ID {language_id} is not supported."
             )
         return language
