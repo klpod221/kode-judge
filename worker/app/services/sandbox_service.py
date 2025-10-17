@@ -5,7 +5,6 @@ Handles compilation and execution in isolated environments.
 
 import subprocess
 import logging
-import shlex
 import os
 import random
 from pathlib import Path
@@ -249,18 +248,29 @@ class SandboxService:
             Dict[str, Any]: Compilation result with status, stdout, stderr, and meta.
         """
         compile_meta_file = self.box_path / "compile_meta.txt"
+        
+        # Use higher memory limit for compilation (512MB instead of runtime limit)
+        compile_memory_limit = max(self.config.memory_limit, 512000)
 
         compile_cmd_list = [
             self.config.isolate_binary,
             f"--box-id={self.box_id}",
             f"--meta={compile_meta_file}",
             "--full-env",
-            f"--time={self.config.cpu_time_limit}",
+            f"--time={self.config.cpu_time_limit * 3}",
             f"--extra-time={self.config.cpu_extra_time}",
-            f"--wall-time={self.config.wall_time_limit}",
-            f"--mem={self.config.memory_limit}",
+            f"--wall-time={self.config.wall_time_limit * 2}",
+            f"--mem={compile_memory_limit}",
             f"--processes={self.config.max_processes}",
             f"--fsize={self.config.max_file_size}",
+            # Mount essential directories for compilers
+            "--dir=/usr/bin",
+            "--dir=/usr/lib",
+            "--dir=/usr/include",
+            "--dir=/lib",
+            "--dir=/lib64:maybe",
+            "--dir=/usr/local",
+            "--dir=/etc/alternatives:maybe",
         ]
 
         if self.config.enable_per_process_time_limit:
@@ -278,9 +288,11 @@ class SandboxService:
                 "--stderr=compile_stderr.txt",
                 "--run",
                 "--",
+                "/bin/sh",
+                "-c",
+                compile_command,
             ]
         )
-        compile_cmd_list.extend(shlex.split(compile_command))
 
         logger.info(f"Compiling with command: {' '.join(compile_cmd_list)}")
         compile_result = subprocess.run(
@@ -363,9 +375,11 @@ class SandboxService:
             [
                 "--run",
                 "--",
+                "/bin/sh",
+                "-c",
+                run_command,
             ]
         )
-        run_cmd_list.extend(shlex.split(run_command))
 
         logger.info(f"Executing with command: {' '.join(run_cmd_list)}")
         subprocess.run(run_cmd_list, capture_output=True, text=True)

@@ -118,7 +118,5 @@ worker/*.log
 .DS_Store
 Thumbs.db
 
-# Test runner files
-result.html
-test-cases.json
-test-runner.js
+# Test reports
+tests/reports/
