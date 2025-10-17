@@ -19,6 +19,7 @@ from app.schemas.submission import (
 from app.schemas.language import LanguageRead
 from app.db.models import Submission, SubmissionStatus
 from app.utils.encoder import Base64Encoder
+from app.utils.field_filter import FieldFilter
 
 
 class SubmissionService:
@@ -173,7 +174,7 @@ class SubmissionService:
         return [SubmissionID(id=sub.id) for sub in created_submissions]
     
     async def get_submission(
-        self, submission_id: uuid.UUID, base64_encoded: bool = False
+        self, submission_id: uuid.UUID, base64_encoded: bool = False, fields: str | None = None
     ) -> Dict[str, Any]:
         """
         Retrieves a submission by ID.
@@ -181,6 +182,7 @@ class SubmissionService:
         Args:
             submission_id: The submission identifier.
             base64_encoded: Whether to encode output as Base64.
+            fields: Comma-separated field names to include in response.
             
         Returns:
             Dict[str, Any]: Submission data.
@@ -202,33 +204,43 @@ class SubmissionService:
         if base64_encoded:
             submission_data = self._encode_submission_data(submission, submission_data)
         
+        field_set = FieldFilter.parse_fields(fields)
+        submission_data = FieldFilter.filter_data(submission_data, field_set)
+        
         return submission_data
     
     async def get_batch_submissions(
-        self, submission_ids: List[uuid.UUID], base64_encoded: bool = False
-    ) -> List[SubmissionRead]:
+        self, submission_ids: List[uuid.UUID], base64_encoded: bool = False, fields: str | None = None
+    ) -> List[Dict[str, Any]]:
         """
         Retrieves multiple submissions by IDs.
         
         Args:
             submission_ids: List of submission identifiers.
             base64_encoded: Whether to encode output as Base64.
+            fields: Comma-separated field names to include in response.
             
         Returns:
-            List[SubmissionRead]: List of submission data.
+            List[Dict[str, Any]]: List of submission data.
         """
         submissions = await self.submission_repo.get_by_ids(submission_ids)
-        response_data = [SubmissionRead.model_validate(sub) for sub in submissions]
+        submissions_data = [
+            SubmissionRead.model_validate(sub).model_dump(mode="json") 
+            for sub in submissions
+        ]
         
         if base64_encoded:
-            for submission, db_submission in zip(response_data, submissions):
-                self._encode_submission_fields(submission, db_submission)
+            for submission_data, db_submission in zip(submissions_data, submissions):
+                self._encode_dict_fields(submission_data, db_submission)
         
-        return response_data
+        field_set = FieldFilter.parse_fields(fields)
+        submissions_data = FieldFilter.filter_list(submissions_data, field_set)
+        
+        return submissions_data
     
     async def list_submissions(
-        self, page: int, page_size: int, base64_encoded: bool = False
-    ) -> SubmissionListResponse:
+        self, page: int, page_size: int, base64_encoded: bool = False, fields: str | None = None
+    ) -> Dict[str, Any]:
         """
         Retrieves paginated list of submissions.
         
@@ -236,9 +248,10 @@ class SubmissionService:
             page: Page number (1-indexed).
             page_size: Number of items per page.
             base64_encoded: Whether to encode output as Base64.
+            fields: Comma-separated field names to include in response.
             
         Returns:
-            SubmissionListResponse: Paginated submission list.
+            Dict[str, Any]: Paginated submission list.
         """
         submissions, total_items = await self.submission_repo.get_paginated(
             page, page_size
@@ -253,15 +266,18 @@ class SubmissionService:
             for submission_data, db_submission in zip(submissions_data, submissions):
                 self._encode_dict_fields(submission_data, db_submission)
         
+        field_set = FieldFilter.parse_fields(fields)
+        submissions_data = FieldFilter.filter_list(submissions_data, field_set)
+        
         total_pages = (total_items + page_size - 1) // page_size if page_size > 0 else 1
         
-        return SubmissionListResponse(
-            items=submissions_data,
-            total_items=total_items,
-            total_pages=total_pages,
-            current_page=page,
-            page_size=page_size,
-        )
+        return {
+            "items": submissions_data,
+            "total_items": total_items,
+            "total_pages": total_pages,
+            "current_page": page,
+            "page_size": page_size,
+        }
     
     async def delete_submission(self, submission_id: uuid.UUID) -> None:
         """

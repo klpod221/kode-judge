@@ -4,7 +4,7 @@ Submission endpoints for code execution and management.
 
 import uuid
 from fastapi import APIRouter, Depends, Query, Response, status, HTTPException
-from typing import List
+from typing import List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from rq import Queue
 
@@ -72,7 +72,7 @@ async def create_batch_submissions(
 
 @router.get(
     "/batch",
-    response_model=List[SubmissionRead],
+    response_model=None,
     summary="Get Multiple Submissions",
     description="Retrieves details for multiple submissions at once by providing a comma-separated list of their UUIDs.",
 )
@@ -86,18 +86,24 @@ async def get_batch_submissions(
         False,
         description="Set to true to Base64 encode fields specified in the 'fields' parameter.",
     ),
+    fields: str | None = Query(
+        None,
+        description="Comma-separated list of fields to return. Use 'all' for all fields, 'default' for default fields, or 'default,field1,field2' to extend defaults. Leave empty for default fields only.",
+        example="default,meta,additional_files",
+    ),
     service: SubmissionService = Depends(get_submission_service),
-) -> List[SubmissionRead]:
+) -> List[Dict[str, Any]]:
     """
     Retrieves multiple submissions by IDs.
 
     Args:
         ids: Comma-separated UUID list.
         base64_encoded: Whether to encode output as Base64.
+        fields: Fields to include in response.
         service: Submission service instance.
 
     Returns:
-        List[SubmissionRead]: Submission details.
+        List[Dict[str, Any]]: Submission details.
     """
     try:
         submission_ids = [uuid.UUID(sub_id.strip()) for sub_id in ids.split(",")]
@@ -110,7 +116,7 @@ async def get_batch_submissions(
     if not submission_ids:
         return []
 
-    return await service.get_batch_submissions(submission_ids, base64_encoded)
+    return await service.get_batch_submissions(submission_ids, base64_encoded, fields)
 
 
 @router.post(
@@ -148,7 +154,7 @@ async def create_submission(
 
 @router.get(
     "/{submission_id}",
-    response_model=SubmissionRead,
+    response_model=None,
     summary="Get submission details",
     description="Retrieves the current status and result of a specific submission by its UUID.",
 )
@@ -158,25 +164,31 @@ async def get_submission(
         False,
         description="If true, the source_code, stdin, stdout, and stderr fields in the response will be Base64-encoded. Defaults to false.",
     ),
+    fields: str | None = Query(
+        None,
+        description="Comma-separated list of fields to return. Use 'all' for all fields, 'default' for default fields, or 'default,field1,field2' to extend defaults. Leave empty for default fields only.",
+        example="default,meta,language",
+    ),
     service: SubmissionService = Depends(get_submission_service),
-):
+) -> Dict[str, Any]:
     """
     Retrieves a submission by ID.
 
     Args:
         submission_id: The submission identifier.
         base64_encoded: Whether to encode output as Base64.
+        fields: Fields to include in response.
         service: Submission service instance.
 
     Returns:
-        SubmissionRead: Submission details.
+        Dict[str, Any]: Submission details.
     """
-    return await service.get_submission(submission_id, base64_encoded)
+    return await service.get_submission(submission_id, base64_encoded, fields)
 
 
 @router.get(
     "/",
-    response_model=SubmissionListResponse,
+    response_model=None,
     summary="List all submissions",
     description="Retrieves a list of all submissions with their current statuses and results.",
 )
@@ -185,23 +197,29 @@ async def list_submissions(
         False,
         description="If true, the source_code, stdin, stdout, and stderr fields in the response will be Base64-encoded. Defaults to false.",
     ),
+    fields: str | None = Query(
+        None,
+        description="Comma-separated list of fields to return. Use 'all' for all fields, 'default' for default fields, or 'default,field1,field2' to extend defaults. Leave empty for default fields only.",
+        example="default,source_code,language",
+    ),
     page: int = Query(1, ge=1, description="Page number for pagination."),
     page_size: int = Query(10, ge=1, le=100, description="Number of items per page."),
     service: SubmissionService = Depends(get_submission_service),
-) -> SubmissionListResponse:
+) -> Dict[str, Any]:
     """
     Lists all submissions with pagination.
 
     Args:
         base64_encoded: Whether to encode output as Base64.
+        fields: Fields to include in response.
         page: Page number.
         page_size: Items per page.
         service: Submission service instance.
 
     Returns:
-        SubmissionListResponse: Paginated submission list.
+        Dict[str, Any]: Paginated submission list.
     """
-    return await service.list_submissions(page, page_size, base64_encoded)
+    return await service.list_submissions(page, page_size, base64_encoded, fields)
 
 
 @router.delete(
