@@ -9,22 +9,9 @@
 
 ## 📝 Description
 
-**KodeJudge** is a modern online code execution engine inspired by Judge0. It provides a robust platform for executing code in multiple programming languages with secure sandboxing using Isolate. Built with FastAPI and following SOLID principles, it offers a clean, maintainable, and scalable architecture perfect for educational platforms, coding competitions, and automated testing systems.
+**KodeJudge** is a modern, high-performance online code execution engine inspired by Judge0. It provides a robust and secure platform for executing code in multiple programming languages with Isolate-based sandboxing. Perfect for educational platforms, coding competitions, online assessments, and automated testing systems.
 
-## ✨ Features
-
-- 🚀 **Multi-Language Support** - Execute code in Python, C, C++, Java, JavaScript, and more
-- 🔒 **Secure Sandboxing** - Isolate-based sandboxing for safe code execution
-- ⚡ **Async Processing** - RQ (Redis Queue) for asynchronous job processing
-- 🔄 **Concurrent Workers** - Configurable number of workers for parallel execution
-- 🏗️ **Clean Architecture** - SOLID principles with Repository and Service patterns
-- 🐳 **Docker-based** - Fully containerized with Docker Compose
-- 📊 **RESTful API** - FastAPI with automatic OpenAPI documentation
-- 💾 **Persistent Storage** - PostgreSQL database with async support
-- 📦 **Base64 Support** - Handle encoded source code and I/O
-- 🔄 **Batch Operations** - Submit and retrieve multiple submissions at once
-- ⏱️ **Wait Mode** - Optional synchronous execution with immediate results
-- 🔍 **Health Checks** - Comprehensive monitoring endpoints for all system components
+> You can find the project demo on [KodeJudge Demo](https://kodejudge.klpod221.com)
 
 ## 🚀 Getting Started
 
@@ -59,97 +46,59 @@
 
 ### Configuration
 
-Environment variables can be configured in `.env` file:
+Create a `.env` file based on `.env.example`:
 
 ```env
-# PostgreSQL
-POSTGRES_HOST=postgres
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=kode_judge
+# Database Configuration
+POSTGRES_HOST=db
+POSTGRES_USER=kodejudge
+POSTGRES_PASSWORD=yourpasswordhere
+POSTGRES_DB=kodejudge
 POSTGRES_PORT=5432
 
-# Redis
-REDIS_HOST=redis
+# Redis Configuration
+REDIS_HOST=queue
 REDIS_PORT=6379
 REDIS_PREFIX=kodejudge
 
-# Worker
-WORKER_CONCURRENCY=4  # Number of concurrent workers (default: 4)
+# Worker Configuration
+WORKER_CONCURRENCY=4                            # Number of concurrent workers
+
+# Sandbox Execution Limits
+SANDBOX_CPU_TIME_LIMIT=2.0                      # CPU time in seconds
+SANDBOX_CPU_EXTRA_TIME=0.5                      # Extra CPU time buffer in seconds
+SANDBOX_WALL_TIME_LIMIT=5.0                     # Wall clock time in seconds
+SANDBOX_MEMORY_LIMIT=128000                     # Memory limit in KB (128MB)
+SANDBOX_MAX_PROCESSES=128                       # Maximum processes/threads
+SANDBOX_MAX_FILE_SIZE=10240                     # Max file size in KB (10MB)
+SANDBOX_NUMBER_OF_RUNS=1                        # Default number of runs
+
+# Sandbox Optional Features
+SANDBOX_ENABLE_PER_PROCESS_TIME_LIMIT=false
+SANDBOX_ENABLE_PER_PROCESS_MEMORY_LIMIT=false
+SANDBOX_REDIRECT_STDERR_TO_STDOUT=false
+SANDBOX_ENABLE_NETWORK=false
+
+# Additional Files Configuration
+SANDBOX_MAX_ADDITIONAL_FILES=10                 # Max number of additional files
+SANDBOX_MAX_ADDITIONAL_FILES_SIZE=2048          # Total size in KB (2MB)
+
+# Rate Limiting Configuration
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_PER_MINUTE=20                        # Max requests per minute
+RATE_LIMIT_PER_HOUR=100                         # Max requests per hour
+RATE_LIMIT_STRATEGY=fixed-window                # fixed-window or sliding-window
 ```
 
 ## 📚 API Usage
 
-### Create a Submission
-
-```bash
-curl -X POST "http://localhost:8000/submissions/" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "source_code": "print(\"Hello, World!\")",
-    "language_id": 1,
-    "stdin": ""
-  }'
-```
-
-### Get Submission Result
-
-```bash
-curl "http://localhost:8000/submissions/{submission_id}"
-```
-
-### List All Languages
-
-```bash
-curl "http://localhost:8000/languages/"
-```
-
-### Health Check
-
-```bash
-# Overall health
-curl "http://localhost:8000/health/"
-
-# Database health
-curl "http://localhost:8000/health/database"
-
-# Redis health
-curl "http://localhost:8000/health/redis"
-
-# Workers health
-curl "http://localhost:8000/health/workers"
-
-# System information
-curl "http://localhost:8000/health/info"
-
-# Simple ping
-curl "http://localhost:8000/health/ping"
-```
-
-### Batch Submissions
-
-```bash
-curl -X POST "http://localhost:8000/submissions/batch" \
-  -H "Content-Type: application/json" \
-  -d '[
-    {
-      "source_code": "print(1 + 1)",
-      "language_id": 1
-    },
-    {
-      "source_code": "console.log(2 + 2)",
-      "language_id": 2
-    }
-  ]'
-```
-
-For more examples, visit the interactive API documentation at `/docs`.
+Visit the API documentation at `http://localhost:8000/docs` for detailed information on available endpoints, request/response formats, and examples. Or use the ReDoc interface at `http://localhost:8000/redoc` for an alternative view.
 
 ## ⚙️ Worker Configuration
 
 ### Adjusting Worker Concurrency
 
-KodeJudge supports running multiple workers in parallel to handle high loads. Configure the number of workers using the `WORKER_CONCURRENCY` environment variable:
+KodeJudge supports running multiple workers in parallel to handle high submission loads efficiently. Configure the number of workers using the `WORKER_CONCURRENCY` environment variable:
 
 ```env
 # .env file
@@ -159,117 +108,157 @@ WORKER_CONCURRENCY=8  # Run 8 workers in parallel
 **Default:** 4 workers
 
 **Recommendations:**
-- **Low traffic:** 2-4 workers
-- **Medium traffic:** 4-8 workers
-- **High traffic:** 8-16 workers
-- **Resource consideration:** Each worker requires CPU and memory for code execution
+- **Low traffic (< 10 submissions/min):** 2-4 workers
+- **Medium traffic (10-50 submissions/min):** 4-8 workers
+- **High traffic (50+ submissions/min):** 8-16 workers
+- **Resource consideration:** Each worker requires CPU and memory for code execution. Monitor system resources to find optimal worker count.
 
 ### Monitoring Workers
 
-Check worker status:
+**Check worker status via API:**
 ```bash
-# View worker logs
-docker-compose logs -f worker
-
-# Check running workers
-docker-compose exec worker rq info --url redis://queue:6379
-
-# Health check via API
 curl http://localhost:8000/health/workers
 ```
 
-## 🔍 Monitoring & Health Checks
+**Check worker status via CLI:**
+```bash
+# View worker logs
+docker compose logs -f worker
 
-KodeJudge provides comprehensive health check endpoints for monitoring system status:
+# Check running workers and queue info
+docker compose exec worker rq info --url redis://queue:6379
 
-### Available Endpoints
-
-| Endpoint | Description | Response |
-|----------|-------------|----------|
-| `/health/` | Overall system health | Status of all components |
-| `/health/database` | Database connectivity | Connection status & response time |
-| `/health/redis` | Redis connectivity | Connection status & response time |
-| `/health/workers` | Worker status | Queue size, worker count, failed jobs |
-| `/health/info` | System information | Version, uptime, statistics |
-| `/health/ping` | Simple availability check | Basic pong response |
-
-### Health Status Values
-
-- `healthy` - All systems operational
-- `degraded` - System operational but with issues (high load, failed jobs)
-- `unhealthy` - Critical component failure
-- `no_workers` - No workers available to process submissions
-
-### Worker Health Metrics
-
-The `/health/workers` endpoint provides detailed metrics:
-
-```json
-{
-  "queue_name": "kodejudge_submission_queue",
-  "queue_size": 5,
-  "workers_total": 4,
-  "workers_busy": 2,
-  "workers_idle": 2,
-  "failed_jobs": 0,
-  "status": "healthy"
-}
+# Monitor queue size
+docker compose exec worker python -m app.db_utils --check-queue
 ```
 
-### Integration with Monitoring Tools
-
-Health check endpoints can be integrated with monitoring tools like:
-- **Prometheus** - For metrics collection
-- **Grafana** - For visualization
-- **UptimeRobot** - For uptime monitoring
-- **Datadog** - For comprehensive monitoring
-
-Example Prometheus scrape config:
-```yaml
-scrape_configs:
-  - job_name: 'kodejudge'
-    metrics_path: '/health/'
-    static_configs:
-      - targets: ['localhost:8000']
-```
-
-## 🛠️ Development
+**Worker Metrics:**
+- Queue name: The name of the Redis queue being used
+- Queue size: Number of jobs waiting in the queue
+- Workers total: Total number of worker processes
+- Workers busy: Number of workers currently processing jobs
+- Workers idle: Number of idle workers available for new jobs
+- Failed jobs: Number of jobs that have failed during processing
+- Status: Overall status of the worker system (e.g., healthy, degraded)
 
 ## 🎯 Supported Languages
 
-- Python 3.x
-- JavaScript (Node.js)
-- C (GCC)
-- C++ (G++)
-- Java
-- And more...
+KodeJudge supports multiple programming languages with pre-configured compilation and execution commands:
 
-See `/languages` endpoint for the complete list.
+| Language | Version | ID |
+|----------|---------|------|
+| Python | 3.x | 1 |
+| JavaScript (Node.js) | Latest | 2 |
+| C (GCC) | Latest | 3 |
+| C++ (G++) | Latest | 4 |
+| Java | Latest | 5 |
+
+To see the complete list with detailed configuration:
+```bash
+curl "http://localhost:8000/languages/"
+```
+
+### Adding New Languages
+
+Languages can be added through the database seeding script at `server/app/scripts/seed.py`. Each language requires:
+- **Name** and **version**
+- **Source file extension**
+- **Compile command** (if applicable)
+- **Run command**
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Whether it's bug fixes, new features, documentation improvements, or language support, your help is appreciated.
 
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+### How to Contribute
+
+1. **Fork the repository**
+   ```bash
+   git clone https://github.com/klpod221/kode-judge.git
+   cd kode-judge
+   ```
+
+2. **Create a feature branch**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+
+3. **Make your changes**
+   - Follow the existing code style
+   - Add tests for new features
+   - Update documentation as needed
+
+4. **Test your changes**
+   ```bash
+   docker compose up --build
+   # Run tests
+   docker compose exec server pytest
+   ```
+
+5. **Commit your changes**
+   ```bash
+   git commit -m "Add: amazing feature description"
+   ```
+
+6. **Push to your fork**
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+
+7. **Open a Pull Request**
+   - Provide a clear description of the changes
+   - Reference any related issues
+
+### Development Guidelines
+
+- Write clean, readable code following SOLID principles
+- Use meaningful variable and function names
+- Add comments for complex logic
+- Write tests for new features
+- Update documentation for API changes
+- Follow existing project structure and patterns
+
+### Areas for Contribution
+
+- 🌐 **Language Support**: Add new programming languages
+- 🔒 **Security**: Improve sandboxing and security features
+- 📊 **Monitoring**: Enhanced metrics and logging
+- 🧪 **Testing**: Increase test coverage
+- 📚 **Documentation**: Improve guides and examples
+- 🎨 **Features**: New submission options or API endpoints
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## 🌟 Acknowledgments
+
+- **[Judge0](https://judge0.com/)** - Inspiration for this project
+- **[FastAPI](https://fastapi.tiangolo.com/)** - Modern Python web framework
+- **[Isolate](https://github.com/ioi/isolate)** - Sandbox for secure code execution
+- **[RQ (Redis Queue)](https://python-rq.org/)** - Simple job queue for Python
+- **[SQLAlchemy](https://www.sqlalchemy.org/)** - Python SQL toolkit and ORM
+- **[PostgreSQL](https://www.postgresql.org/)** - Powerful open-source database
+- **[Redis](https://redis.io/)** - In-memory data structure store
+
 ## 👤 Author
 
 **klpod221** (Bùi Thanh Xuân)
 
-- GitHub: [@klpod221](https://github.com/klpod221)
-- Website: [klpod221.com](https://klpod221.com)
-- Email: klpod221@gmail.com
+- 🌐 Website: [klpod221.com](https://klpod221.com)
+- 💻 GitHub: [@klpod221](https://github.com/klpod221)
+- 📧 Email: klpod221@gmail.com
 
-## 🙏 Acknowledgments
+## 📞 Support
 
-- Inspired by [Judge0](https://judge0.com/)
-- Built with [FastAPI](https://fastapi.tiangolo.com/)
-- Sandboxing powered by [Isolate](https://github.com/ioi/isolate)
+If you have any questions or need help, feel free to:
+- Open an issue on [GitHub](https://github.com/klpod221/kode-judge/issues)
+- Contact via email: klpod221@gmail.com
+- Visit my website: [klpod221.com](https://klpod221.com)
+
+---
+
+<div align="center">
+    <p>Made with ❤️ by klpod221</p>
+    <p>⭐ Star this repository if you find it helpful!</p>
+</div>
