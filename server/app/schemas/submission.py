@@ -9,20 +9,25 @@ from .language import LanguageShow
 
 
 class SubmissionBase(BaseModel):
-    source_code: str = Field(..., min_length=1, description="Source code for the submission (cannot be empty)")
-    language_id: int
-    stdin: str | None = None
-    additional_files: list[dict] | None = None
+    source_code: str = Field(
+        ..., 
+        min_length=1, 
+        max_length=100000,
+        description="Source code for the submission (cannot be empty)"
+    )
+    language_id: int = Field(..., gt=0)
+    stdin: str | None = Field(None, max_length=50000)
+    additional_files: list[dict] | None = Field(None, max_length=settings.SANDBOX_MAX_ADDITIONAL_FILES)
     
-    expected_output: str | None = None
+    expected_output: str | None = Field(None, max_length=50000)
     
-    cpu_time_limit: float | None = Field(None, gt=0)
-    cpu_extra_time: float | None = Field(None, gt=0)
-    wall_time_limit: float | None = Field(None, gt=0)
-    memory_limit: int | None = Field(None, gt=0)
-    max_processes_and_or_threads: int | None = Field(None, gt=0)
-    max_file_size: int | None = Field(None, gt=0)
-    number_of_runs: int | None = Field(None, gt=0)
+    cpu_time_limit: float | None = Field(None, gt=0, le=settings.SANDBOX_CPU_TIME_LIMIT * 10)
+    cpu_extra_time: float | None = Field(None, gt=0, le=settings.SANDBOX_CPU_EXTRA_TIME * 10)
+    wall_time_limit: float | None = Field(None, gt=0, le=settings.SANDBOX_WALL_TIME_LIMIT * 10)
+    memory_limit: int | None = Field(None, gt=0, le=settings.SANDBOX_MEMORY_LIMIT * 10)
+    max_processes_and_or_threads: int | None = Field(None, gt=0, le=settings.SANDBOX_MAX_PROCESSES * 2)
+    max_file_size: int | None = Field(None, gt=0, le=settings.SANDBOX_MAX_FILE_SIZE * 10)
+    number_of_runs: int | None = Field(None, gt=0, le=100)
     
     enable_per_process_and_thread_time_limit: bool | None = None
     enable_per_process_and_thread_memory_limit: bool | None = None
@@ -46,6 +51,55 @@ class SubmissionBase(BaseModel):
         """
         if not v or not v.strip():
             raise ValueError('Source code cannot be empty or contain only whitespace')
+        return v
+    
+    @field_validator('additional_files')
+    @classmethod
+    def validate_additional_files(cls, v: list[dict] | None) -> list[dict] | None:
+        """
+        Validates additional files structure and size limits.
+        
+        Args:
+            v: List of additional files.
+            
+        Returns:
+            list[dict] | None: Validated additional files.
+            
+        Raises:
+            ValueError: If files exceed size limits or have invalid structure.
+        """
+        if v is None:
+            return v
+        
+        total_size = 0
+        for idx, file in enumerate(v):
+            if not isinstance(file, dict):
+                raise ValueError(f'Additional file at index {idx} must be a dictionary')
+            
+            if 'name' not in file or 'content' not in file:
+                raise ValueError(f'Additional file at index {idx} must have "name" and "content" fields')
+            
+            if not isinstance(file['name'], str) or not file['name'].strip():
+                raise ValueError(f'Additional file at index {idx} must have a valid name')
+            
+            if not isinstance(file['content'], str):
+                raise ValueError(f'Additional file at index {idx} content must be a string')
+            
+            file_size = len(file['content'].encode('utf-8')) // 1024
+            total_size += file_size
+            
+            if file_size > settings.SANDBOX_MAX_FILE_SIZE:
+                raise ValueError(
+                    f'Additional file "{file["name"]}" size ({file_size}KB) exceeds limit '
+                    f'({settings.SANDBOX_MAX_FILE_SIZE}KB)'
+                )
+        
+        if total_size > settings.SANDBOX_MAX_ADDITIONAL_FILES_SIZE:
+            raise ValueError(
+                f'Total additional files size ({total_size}KB) exceeds limit '
+                f'({settings.SANDBOX_MAX_ADDITIONAL_FILES_SIZE}KB)'
+            )
+        
         return v
 
 
