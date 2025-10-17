@@ -68,12 +68,18 @@ class SubmissionService:
             base64_encoded,
         )
         
+        additional_files = self._decode_additional_files(
+            submission_data.additional_files,
+            base64_encoded,
+        )
+        
         language = await self._validate_language(submission_data.language_id)
         
         db_submission = Submission(
             source_code=source_code,
             language_id=language.id,
             stdin=stdin,
+            additional_files=additional_files,
             status=SubmissionStatus.PENDING,
             expected_output=submission_data.expected_output,
             cpu_time_limit=submission_data.cpu_time_limit,
@@ -130,9 +136,15 @@ class SubmissionService:
                 sub_data.source_code, sub_data.stdin, base64_encoded
             )
             
+            additional_files = self._decode_additional_files(
+                sub_data.additional_files,
+                base64_encoded,
+            )
+            
             db_submission = Submission(
                 source_code=source_code,
                 stdin=stdin,
+                additional_files=additional_files,
                 language_id=language.id,
                 expected_output=sub_data.expected_output,
                 cpu_time_limit=sub_data.cpu_time_limit,
@@ -300,6 +312,40 @@ class SubmissionService:
                 detail=str(e)
             )
     
+    def _decode_additional_files(
+        self, additional_files: List[Dict[str, Any]] | None, base64_encoded: bool
+    ) -> List[Dict[str, Any]] | None:
+        """
+        Decodes additional files content if Base64 encoded.
+        
+        Args:
+            additional_files: List of files with name and content.
+            base64_encoded: Whether content is Base64 encoded.
+            
+        Returns:
+            List[Dict[str, Any]] | None: Decoded files or None.
+            
+        Raises:
+            HTTPException: If decoding fails.
+        """
+        if not additional_files or not base64_encoded:
+            return additional_files
+        
+        try:
+            decoded_files = []
+            for file in additional_files:
+                decoded_file = {
+                    "name": file.get("name"),
+                    "content": Base64Encoder.decode(file.get("content", ""))
+                }
+                decoded_files.append(decoded_file)
+            return decoded_files
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid Base64 in additional_files: {e}"
+            )
+    
     async def _validate_language(self, language_id: int):
         """
         Validates that a language exists.
@@ -385,6 +431,17 @@ class SubmissionService:
         data["stdin"] = Base64Encoder.encode_optional(submission.stdin)
         data["stdout"] = Base64Encoder.encode_optional(submission.stdout)
         data["stderr"] = Base64Encoder.encode_optional(submission.stderr)
+        
+        if submission.additional_files:
+            encoded_files = []
+            for file in submission.additional_files:
+                encoded_file = {
+                    "name": file.get("name"),
+                    "content": Base64Encoder.encode(file.get("content", ""))
+                }
+                encoded_files.append(encoded_file)
+            data["additional_files"] = encoded_files
+        
         return data
     
     def _encode_submission_fields(
@@ -407,6 +464,16 @@ class SubmissionService:
         submission_schema.stderr = Base64Encoder.encode_optional(
             submission_entity.stderr
         )
+        
+        if submission_entity.additional_files:
+            encoded_files = []
+            for file in submission_entity.additional_files:
+                encoded_file = {
+                    "name": file.get("name"),
+                    "content": Base64Encoder.encode(file.get("content", ""))
+                }
+                encoded_files.append(encoded_file)
+            submission_schema.additional_files = encoded_files
     
     def _encode_dict_fields(
         self, data: Dict[str, Any], submission: Submission
@@ -422,3 +489,13 @@ class SubmissionService:
         data["stdin"] = Base64Encoder.encode_optional(submission.stdin)
         data["stdout"] = Base64Encoder.encode_optional(submission.stdout)
         data["stderr"] = Base64Encoder.encode_optional(submission.stderr)
+        
+        if submission.additional_files:
+            encoded_files = []
+            for file in submission.additional_files:
+                encoded_file = {
+                    "name": file.get("name"),
+                    "content": Base64Encoder.encode(file.get("content", ""))
+                }
+                encoded_files.append(encoded_file)
+            data["additional_files"] = encoded_files

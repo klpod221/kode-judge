@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     SANDBOX_REDIRECT_STDERR_TO_STDOUT: bool = False
     SANDBOX_ENABLE_NETWORK: bool = False
 
+    # Additional files limits
+    SANDBOX_MAX_ADDITIONAL_FILES: int = 10
+    # Total size in KB for all additional files
+    SANDBOX_MAX_ADDITIONAL_FILES_SIZE: int = 2048
+
     # Rate limiting configuration
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_PER_MINUTE: int = 20

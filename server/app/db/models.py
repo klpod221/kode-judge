@@ -44,6 +44,8 @@ class Submission(Base):
         Enum(SubmissionStatus), default=SubmissionStatus.PENDING, nullable=False
     )
     meta = Column(JSONB)
+    # Additional files uploaded with submission (list of {name, content})
+    additional_files = Column(JSONB)
     
     # Expected output for comparison
     expected_output = Column(Text)

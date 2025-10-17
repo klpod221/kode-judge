@@ -12,6 +12,8 @@ class SubmissionBase(BaseModel):
     source_code: str
     language_id: int
     stdin: str | None = None
+    # Additional files: list of {name: str, content: str}
+    additional_files: list[dict] | None = None
     
     # Expected output for comparison
     expected_output: str | None = None
@@ -63,6 +65,7 @@ class SubmissionRead(SubmissionBase):
             'source_code': self.source_code,
             'language_id': self.language_id,
             'stdin': self.stdin,
+            'additional_files': self.additional_files,
             'language': self.language,
             'status': self.status,
             'stdout': self.stdout,

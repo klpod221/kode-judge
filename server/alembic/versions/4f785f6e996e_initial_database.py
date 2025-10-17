@@ -1,8 +1,8 @@
-"""Create initial database schema
+"""Initial Database
 
-Revision ID: 4b5a76bbab53
+Revision ID: 4f785f6e996e
 Revises: 
-Create Date: 2025-10-16 04:28:08.512063
+Create Date: 2025-10-17 02:40:00.213318
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '4b5a76bbab53'
+revision: str = '4f785f6e996e'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -45,6 +45,7 @@ def upgrade() -> None:
     sa.Column('compile_output', sa.Text(), nullable=True),
     sa.Column('status', sa.Enum('PENDING', 'PROCESSING', 'FINISHED', 'ERROR', name='submissionstatus'), nullable=False),
     sa.Column('meta', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    sa.Column('additional_files', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.Column('expected_output', sa.Text(), nullable=True),
     sa.Column('cpu_time_limit', sa.Float(), nullable=True),
     sa.Column('cpu_extra_time', sa.Float(), nullable=True),

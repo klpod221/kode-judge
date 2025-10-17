@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     SANDBOX_REDIRECT_STDERR_TO_STDOUT: bool = False
     SANDBOX_ENABLE_NETWORK: bool = False
 
+    # Additional files limits
+    SANDBOX_MAX_ADDITIONAL_FILES: int = 10
+    SANDBOX_MAX_ADDITIONAL_FILES_SIZE: int = 2048
+
     def __init__(self, **values):
         super().__init__(**values)
 

@@ -124,12 +124,28 @@ class SubmissionProcessingService:
                 
                 self.sandbox_service.initialize()
                 
+                # Prepare main source file
                 self.sandbox_service.prepare_source_file(
                     source_code,
                     language_data["file_name"],
                     language_data["file_extension"],
                 )
-                
+
+                # Prepare additional files (if any)
+                try:
+                    additional_files = submission_data.get("additional_files") or []
+                    self.sandbox_service.prepare_additional_files(additional_files)
+                except ValueError as ve:
+                    repository.update_result(
+                        submission_id=submission_id,
+                        status=SubmissionStatus.ERROR,
+                        stdout="",
+                        stderr=str(ve),
+                        meta={"error": "additional_files_validation"},
+                    )
+                    return {"error": "additional_files_validation", "details": str(ve)}
+
+                # Prepare stdin
                 self.sandbox_service.prepare_stdin(stdin)
                 
                 compile_output = None

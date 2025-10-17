@@ -30,7 +30,7 @@ LANGUAGES = [
         "version": "gcc 12.2.0",
         "file_name": "main",
         "file_extension": ".c",
-        "compile_command": "/usr/bin/gcc main.c -o main",
+        "compile_command": "/usr/bin/gcc *.c -o main",
         "run_command": "./main",
     },
     {
@@ -38,7 +38,7 @@ LANGUAGES = [
         "version": "g++ 12.2.0",
         "file_name": "main",
         "file_extension": ".cpp",
-        "compile_command": "/usr/bin/g++ main.cpp -o main",
+        "compile_command": "/usr/bin/g++ *.cpp -o main",
         "run_command": "./main",
     },
     {

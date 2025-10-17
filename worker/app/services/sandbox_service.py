@@ -11,6 +11,7 @@ import random
 from pathlib import Path
 from typing import Dict, Any, Optional
 from app.db.models import SubmissionStatus
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +194,49 @@ class SandboxService:
         stdin_file = self.box_path / "stdin.txt"
         stdin_file.write_text(stdin or "")
         return stdin_file
+
+    def prepare_additional_files(self, files: list[dict]) -> None:
+        """
+        Writes additional files into the sandbox box directory.
+
+        Args:
+            files: List of dicts with 'name' and 'content' keys.
+
+        Raises:
+            ValueError: If validation fails (too many files, size limits, or invalid names).
+        """
+        if not files:
+            return
+
+        max_files = settings.SANDBOX_MAX_ADDITIONAL_FILES
+        max_total_kb = settings.SANDBOX_MAX_ADDITIONAL_FILES_SIZE
+
+        if len(files) > max_files:
+            raise ValueError(f"Too many additional files: {len(files)} > {max_files}")
+
+        total_size = 0
+        for f in files:
+            name = f.get("name")
+            content = f.get("content", "")
+
+            # Basic filename validation to prevent path traversal
+            if not name or ".." in name or name.startswith("/") or "\\" in name:
+                raise ValueError(f"Invalid file name: {name}")
+
+            # compute size in KB
+            size_kb = len(content.encode("utf-8")) / 1024
+            total_size += size_kb
+
+            if total_size > max_total_kb:
+                raise ValueError(f"Total additional files size exceeds limit: {total_size:.2f} KB > {max_total_kb} KB")
+
+            # Write file
+            file_path = self.box_path / name
+            # Ensure parent directories exist
+            if not file_path.parent.exists():
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            file_path.write_text(content)
 
     def compile(self, compile_command: str) -> Dict[str, Any]:
         """
