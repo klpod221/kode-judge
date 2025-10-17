@@ -13,6 +13,7 @@ from app.dependencies.queue import get_submission_queue
 from app.repositories.submission_repository import SubmissionRepository
 from app.repositories.language_repository import LanguageRepository
 from app.services.submission_service import SubmissionService
+from app.core.config import settings
 from app.schemas.submission import (
     SubmissionCreate,
     SubmissionRead,
@@ -66,7 +67,22 @@ async def create_batch_submissions(
 
     Returns:
         List[SubmissionID]: Created submission IDs.
+        
+    Raises:
+        HTTPException: If submissions list is empty or exceeds limit.
     """
+    if not submissions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Submissions list cannot be empty"
+        )
+    
+    if len(submissions) > settings.MAX_BATCH_SUBMISSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Maximum {settings.MAX_BATCH_SUBMISSIONS} submissions allowed per batch request"
+        )
+    
     return await service.create_batch_submissions(submissions, base64_encoded)
 
 
@@ -126,6 +142,12 @@ async def get_batch_submissions(
 
     if not submission_ids:
         return []
+    
+    if len(submission_ids) > settings.MAX_BATCH_SUBMISSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Maximum {settings.MAX_BATCH_SUBMISSIONS} submission IDs allowed per batch request"
+        )
 
     return await service.get_batch_submissions(submission_ids, base64_encoded, fields)
 

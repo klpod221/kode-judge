@@ -21,13 +21,13 @@ class SubmissionBase(BaseModel):
     
     expected_output: str | None = Field(None, max_length=50000)
     
-    cpu_time_limit: float | None = Field(None, gt=0, le=settings.SANDBOX_CPU_TIME_LIMIT * 10)
-    cpu_extra_time: float | None = Field(None, gt=0, le=settings.SANDBOX_CPU_EXTRA_TIME * 10)
-    wall_time_limit: float | None = Field(None, gt=0, le=settings.SANDBOX_WALL_TIME_LIMIT * 10)
-    memory_limit: int | None = Field(None, gt=0, le=settings.SANDBOX_MEMORY_LIMIT * 10)
+    cpu_time_limit: float | None = Field(None, gt=0, le=settings.SANDBOX_CPU_TIME_LIMIT * 2.5)
+    cpu_extra_time: float | None = Field(None, gt=0, le=settings.SANDBOX_CPU_EXTRA_TIME * 2)
+    wall_time_limit: float | None = Field(None, gt=0, le=settings.SANDBOX_WALL_TIME_LIMIT * 2)
+    memory_limit: int | None = Field(None, gt=0, le=settings.SANDBOX_MEMORY_LIMIT * 4)
     max_processes_and_or_threads: int | None = Field(None, gt=0, le=settings.SANDBOX_MAX_PROCESSES * 2)
-    max_file_size: int | None = Field(None, gt=0, le=settings.SANDBOX_MAX_FILE_SIZE * 10)
-    number_of_runs: int | None = Field(None, gt=0, le=100)
+    max_file_size: int | None = Field(None, gt=0, le=settings.SANDBOX_MAX_FILE_SIZE * 5)
+    number_of_runs: int | None = Field(None, gt=0, le=10)
     
     enable_per_process_and_thread_time_limit: bool | None = None
     enable_per_process_and_thread_memory_limit: bool | None = None

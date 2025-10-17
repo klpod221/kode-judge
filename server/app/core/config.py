@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     SANDBOX_MAX_ADDITIONAL_FILES: int = 10
     # Total size in KB for all additional files
     SANDBOX_MAX_ADDITIONAL_FILES_SIZE: int = 2048
+    
+    # Batch submission limits
+    MAX_BATCH_SUBMISSIONS: int = 10
 
     # Rate limiting configuration
     RATE_LIMIT_ENABLED: bool = True
